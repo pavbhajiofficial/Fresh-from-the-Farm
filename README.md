@@ -1,104 +1,109 @@
-# Fresh from the Farm 🌾
+# Fresh from the Farm
 
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat&logo=next.js)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-18-blue?style=flat&logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Security](https://img.shields.io/badge/Security-Audited%200%20Vulnerabilities-brightgreen?style=flat)](#-security-hardening)
+[![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-18.3-blue?style=flat&logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
+[![Security Audit](https://img.shields.io/badge/Security-0%20Vulnerabilities-brightgreen?style=flat)](https://github.com/advisories)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **Fair for everyone.** A direct-from-farmers marketplace connecting local agricultural producers and buyers with fair, transparent pricing and no middlemen.
+Fresh from the Farm is a direct-to-consumer agricultural commerce platform designed to bridge local producers and commercial buyers. The frontend application provides real-time harvest discovery, order management, and inventory controls without intermediaries.
+
+Built with Next.js (App Router), React, and TypeScript. Styled using semantic CSS without third-party design dependencies.
 
 ---
 
-## ✨ Features
+## System Capabilities
 
-### 🛒 For Buyers
-- **Live Produce Directory**: Filter fresh vegetables, fruits, and greens by category, location, and dynamic price sliders.
-- **Search & Sort**: Real-time keyword filtering and sorting (price low-to-high, high-to-low, newest harvest).
-- **Cart & Checkout**: Multi-item cart with quantity steppers respecting individual minimum order thresholds and live stock limits.
-- **Fulfilment Options**: Toggle seamlessly between doorstep delivery and direct on-farm pickup.
-- **Order Tracking**: Review past and current orders with real-time status badges (`Placed`, `Confirmed`, `Preparing`, `Ready`, `Completed`, `Rejected`).
+### Buyer Interface
+- **Harvest Catalog**: Query agricultural produce filtered by category, location, and price thresholds.
+- **Parametric Search & Sorting**: Real-time keyword filtering and multi-attribute sorting (price ascending/descending, harvest recency).
+- **Cart & Procurement**: Multi-item order assembly with minimum order quantity (MOQ) validation and live inventory limits.
+- **Logistics Selection**: Dynamic fulfillment assignment supporting farm pickup and regional dispatch.
+- **Order Lifecycle Tracking**: Status monitoring across standard order phases (`Placed`, `Confirmed`, `Preparing`, `Ready`, `Completed`, `Rejected`).
 
-### 🧑‍🌾 For Farmers
-- **Merchant Dashboard**: Instant snapshot of total sales revenue, active produce listings, pending orders, and stock levels.
-- **Listing Management**: Add new harvests with variety, description, unit price, stock, and photos.
-- **Harvest Status Controls**: One-click toggles to publish drafts, mark produce as sold out, or reactivate listings.
-- **Order Fulfilment Workflow**: Accept incoming orders, advance fulfillment status (`Confirmed` ➔ `Preparing` ➔ `Ready` ➔ `Completed`), or reject unfulfillable requests.
-
----
-
-## 🔒 Security Hardening
-
-- **Zero Vulnerabilities**: Upgraded dependencies to patched, secure versions (`0 vulnerabilities` on `npm audit`).
-- **HTTP Security Headers**: Enforced in `next.config.mjs`:
-  - `Content-Security-Policy` (CSP) restricting scripts, styles, fonts, objects, and connect endpoints.
-  - `X-Frame-Options: DENY` (anti-clickjacking).
-  - `X-Content-Type-Options: nosniff` (prevents MIME-type sniffing).
-  - `Referrer-Policy: strict-origin-when-cross-origin`.
-  - `Permissions-Policy` (disables unnecessary hardware APIs like camera, microphone, geolocation).
-  - `X-DNS-Prefetch-Control: on` and `Strict-Transport-Security` (HSTS).
-  - Fingerprint suppression with `poweredByHeader: false`.
-- **Upload Validation**: File upload in Farmer portal strictly enforces safe raster image MIME types (JPEG, PNG, WebP, GIF, AVIF), disallows executable SVG formats, and caps sizes at 5 MB.
-- **Safe Media Handling**: Strict protocol inspection on image URLs to prevent `javascript:` and arbitrary script execution, with automatic fallback placeholders for broken links.
-- **Resilient Client Storage**: Input validation and schema assertions on all `localStorage` state to eliminate prototype pollution and corruption.
-- **Form Hardening**: Character length limits (`maxLength`), numeric bounds checking, email/phone format validation, and duplicate submission prevention.
+### Producer Portal
+- **Operational Metrics**: Aggregated metrics covering revenue, active listings, pending orders, and total inventory units.
+- **Listing Management**: Creation and cataloging of harvests with grading details, pricing, stock levels, and photographic documentation.
+- **Lifecycle Control**: Administrative triggers for draft publication, stock exhaustion marking, and listing reactivation.
+- **Fulfillment Operations**: Order review pipeline enabling status progression or structured rejection.
 
 ---
 
-## 🛠️ Tech Stack
+## Security Architecture
+
+The client application incorporates defense-in-depth security measures to protect users, prevent client-side script execution, and validate data integrity:
+
+- **Dependency Integrity**: Fully patched dependency baseline with zero reported vulnerabilities on standard audits (`npm audit`).
+- **HTTP Security Headers**: Configured via `next.config.mjs`:
+  - `Content-Security-Policy`: Restricts script, style, font, connect, and media sources (`object-src 'none'`).
+  - `X-Frame-Options: DENY`: Prevents UI redressing and clickjacking.
+  - `X-Content-Type-Options: nosniff`: Eliminates MIME-type sniffing vulnerabilities.
+  - `Referrer-Policy: strict-origin-when-cross-origin`: Restricts referrer data leakage across external origins.
+  - `Permissions-Policy`: Restricts browser hardware APIs (camera, microphone, geolocation).
+  - `Strict-Transport-Security`: Mandates HTTPS transport in supported environments.
+  - `poweredByHeader: false`: Removes framework signature headers to minimize fingerprinting.
+- **Input Validation & Sanitization**:
+  - Upload endpoints enforce MIME-type whitelisting (JPEG, PNG, WebP, GIF, AVIF), reject executable SVG files, and limit payloads to 5 MB.
+  - Media display enforces URL protocol whitelisting (`http:`, `https:`, safe raster data URIs) with automated fallback handlers for unreachable resources.
+  - Form fields enforce length constraints (`maxLength`), numeric boundaries, contact format validation (RFC-compliant email and E.164 phone formats), and idempotent submission guards.
+- **Client Storage Hardening**: Local storage access layer applies schema validation against parsed JSON to prevent prototype pollution and corrupt state deserialization.
+
+---
+
+## Technology Stack
 
 - **Framework**: Next.js 15 (App Router)
-- **Library**: React 18
-- **Language**: TypeScript 5
-- **Styling**: Handcrafted responsive CSS (`app/globals.css`) with custom earthy color palette and zero UI bloat
-- **Illustrations**: Handcrafted SVG pencil sketches (`components/Sketch.tsx`)
+- **Core Library**: React 18
+- **Typing**: TypeScript 5
+- **Styling**: Native CSS3 with CSS variables and responsive grid layouts (`app/globals.css`)
+- **Graphics**: Scalable Vector Graphics (SVG) with localized filter definitions (`components/Sketch.tsx`)
 
 ---
 
-## 📁 Directory Structure
+## Repository Structure
 
 ```
 ├── app/
-│   ├── layout.tsx             # Root layout, Google Fonts (Gaegu, Inter), metadata & viewport
-│   ├── page.tsx               # Homepage with hero search, marquee, sketches & weekly harvests
-│   ├── marketplace/page.tsx   # Search, filters, and produce card grid
-│   ├── product/[id]/page.tsx  # Product details, stock limits, and buy-now flow
-│   ├── cart/page.tsx          # Cart review, delivery options, and order placement
-│   ├── orders/page.tsx        # Buyer order history and status tracking
-│   ├── auth/page.tsx          # Farmer/Buyer onboarding with form validation
+│   ├── layout.tsx             # Root layout, typography, metadata, and cart provider
+│   ├── page.tsx               # Index view with discovery search and product showcases
+│   ├── marketplace/page.tsx   # Search, filters, and produce catalog
+│   ├── product/[id]/page.tsx  # Product specification and purchase interface
+│   ├── cart/page.tsx          # Order aggregation, dispatch selection, and checkout
+│   ├── orders/page.tsx        # Order history and fulfillment tracking
+│   ├── auth/page.tsx          # Account onboarding with role assignment
 │   ├── farmer/
-│   │   ├── layout.tsx         # Dedicated sidebar layout for farmer portal
-│   │   ├── page.tsx           # Performance overview and recent orders table
-│   │   ├── listings/page.tsx  # Harvest inventory management & status controls
-│   │   ├── new/page.tsx       # Secure produce listing creation with photo upload
-│   │   └── orders/page.tsx    # Order processing and fulfillment progression
+│   │   ├── layout.tsx         # Dedicated administrative portal navigation
+│   │   ├── page.tsx           # Operational metrics and recent transaction table
+│   │   ├── listings/page.tsx  # Harvest inventory control and listing state management
+│   │   ├── new/page.tsx       # Listing creation with photo attachment
+│   │   └── orders/page.tsx    # Order review and fulfillment progression
 │   ├── robots.ts              # Search engine crawler policies
-│   ├── sitemap.ts             # Dynamic search engine sitemap
-│   ├── manifest.ts            # Progressive Web App (PWA) manifest
-│   └── not-found.tsx          # Themed custom 404 page
-├── components/                # Modular UI elements (Header, Footer, Badge, Sketch, Photo, etc.)
+│   ├── sitemap.ts             # Dynamic sitemap index
+│   ├── manifest.ts            # Web application manifest configuration
+│   └── not-found.tsx          # Custom 404 error handler
+├── components/                # Reusable presentation components
 ├── db/
-│   └── schema.sql             # Reference PostgreSQL schema for backend integration
+│   └── schema.sql             # Reference relational schema (PostgreSQL)
 └── lib/
-    ├── api.ts                 # Data layer with client-side persistence & input sanitization
-    ├── cart.tsx               # Cart state context with cross-tab sync & validation
-    ├── format.ts              # INR currency and calculation utilities
-    └── types.ts               # Core TypeScript definitions (Product, Order, User, etc.)
+    ├── api.ts                 # Data access abstraction with local persistence
+    ├── cart.tsx               # Context provider for shopping state
+    ├── format.ts              # Currency formatting and aggregation utilities
+    └── types.ts               # TypeScript data models and interfaces
 ```
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Node.js `18.18+` or `20+`
-- npm `9+`
+- Node.js (v18.18.0 or higher recommended)
+- npm (v9.0.0 or higher)
 
-### Installation
+### Setup Instructions
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/<your-username>/<your-repo-name>.git
+   git clone https://github.com/<organization>/<repository>.git
    cd fresh-from-the-farm
    ```
 
@@ -107,37 +112,46 @@
    npm install
    ```
 
-3. Run the development server:
+3. Start the development server:
    ```bash
    npm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+4. Access the application at `http://localhost:3000`.
 
 ---
 
-## 📜 Available Scripts
+## Build and Scripts
 
-| Command | Description |
+| Command | Action |
 | :--- | :--- |
-| `npm run dev` | Starts local Next.js development server on port 3000 |
-| `npm run build` | Builds the optimized production application |
-| `npm run start` | Starts the production server using the built bundle |
-| `npm audit` | Audits dependencies for security vulnerabilities |
+| `npm run dev` | Initializes local Next.js development server on port 3000 |
+| `npm run build` | Compiles and optimizes production assets |
+| `npm run start` | Serves compiled production build |
+| `npm run lint` | Performs static code and type verification |
 
 ---
 
-## 🔌 Backend Integration
+## Backend Integration
 
-The application contains an isolated data layer in `lib/api.ts`. All frontend components communicate exclusively through typed helper methods (`listProducts`, `getProduct`, `addProduct`, `setProductStatus`, `listOrders`, `createOrder`, `setOrderStatus`).
+The frontend uses an abstraction layer located in `lib/api.ts`. All data mutations and queries route through typed asynchronous functions:
 
-To connect to a live backend API:
-1. Refer to the PostgreSQL reference definitions in `db/schema.sql`.
-2. Update the asynchronous functions in `lib/api.ts` to execute `fetch()` requests against your backend endpoints.
-3. The TypeScript contracts in `lib/types.ts` remain consistent.
+- `listProducts()`
+- `getProduct(id)`
+- `addProduct(payload)`
+- `setProductStatus(id, status)`
+- `deleteProduct(id)`
+- `listOrders()`
+- `createOrder(buyerName, address, items)`
+- `setOrderStatus(id, status)`
+
+To integrate with a live REST or GraphQL service:
+1. Review the data definitions in `lib/types.ts` and the reference relational schema in `db/schema.sql`.
+2. Replace mock storage implementations in `lib/api.ts` with direct API calls (e.g., standard `fetch` requests).
+3. The UI components will function without structural changes.
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the [MIT License](LICENSE).
+This software is distributed under the terms of the [MIT License](LICENSE).
