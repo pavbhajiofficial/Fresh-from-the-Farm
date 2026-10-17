@@ -1,10 +1,11 @@
 /**
- * DATA LAYER. Every page talks to the database only through these functions.
- * 
- * Full-Stack PostgreSQL Integration:
- * - Attempts to communicate with PostgreSQL via Next.js Route Handlers (/api/products, /api/orders).
- * - If PostgreSQL is not configured yet, seamlessly falls back to resilient client-side storage
- *   so the application remains fully testable without breaking.
+ * FRONTEND DATA LAYER. Every page communicates with data only through these functions.
+ * Backend team: replace each function body with a fetch() to your endpoints (shapes are in
+ * lib/types.ts and db/schema.sql).
+ *
+ * For frontend testing and presentation, this layer maintains state in browser localStorage
+ * with seed data fallbacks, so listings, orders, and status updates persist seamlessly across
+ * page refreshes without needing a backend server running.
  */
 import type { Order, OrderItem, OrderStatus, Product, ProductStatus } from './types';
 
@@ -53,53 +54,41 @@ function saveToStorage<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // Quota limits or private browsing
+    // Storage quota limits or private browsing
   }
 }
 
 let productsCache: Product[] = INITIAL_PRODUCTS;
 let ordersCache: Order[] = INITIAL_ORDERS;
 
-function getLocalProducts(): Product[] {
+function getProducts(): Product[] {
   const stored = loadFromStorage<Product[]>('ff_products', productsCache);
   productsCache = Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_PRODUCTS;
   return productsCache;
 }
 
-function getLocalOrders(): Order[] {
+function getOrders(): Order[] {
   const stored = loadFromStorage<Order[]>('ff_orders', ordersCache);
   ordersCache = Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_ORDERS;
   return ordersCache;
 }
 
 export const listProducts = async (): Promise<Product[]> => {
-  if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch('/api/products');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          saveToStorage('ff_products', data);
-          return data;
-        }
-      }
-    } catch {
-      // API not reachable or static export; fallback to local
-    }
-  }
-  return [...getLocalProducts()];
+  return [...getProducts()];
 };
 
 export const getProduct = async (id: number): Promise<Product | null> => {
   const safeId = Math.floor(id);
-  const all = await listProducts();
-  const found = all.find((p) => p.id === safeId);
+  const found = getProducts().find((p) => p.id === safeId);
   return found ? { ...found } : null;
 };
 
 export const addProduct = async (p: Omit<Product, 'id'>): Promise<Product> => {
-  const sanitized: Omit<Product, 'id'> = {
+  const current = getProducts();
+  const nextId = current.length > 0 ? Math.max(...current.map((item) => item.id)) + 1 : 1;
+  const created: Product = {
     ...p,
+    id: nextId,
     name: sanitizeString(p.name, 100),
     grade: sanitizeString(p.grade, 50),
     description: sanitizeString(p.description, 1000),
@@ -116,30 +105,6 @@ export const addProduct = async (p: Omit<Product, 'id'>): Promise<Product> => {
     status: p.status === 'Active' || p.status === 'Draft' || p.status === 'Sold Out' ? p.status : 'Draft',
   };
 
-  // Try PostgreSQL API
-  if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sanitized),
-      });
-      if (res.ok) {
-        const created = await res.json();
-        const full = { ...sanitized, ...created };
-        const current = getLocalProducts();
-        saveToStorage('ff_products', [full, ...current]);
-        return full;
-      }
-    } catch {
-      // fallback to local
-    }
-  }
-
-  // Local storage fallback
-  const current = getLocalProducts();
-  const nextId = current.length > 0 ? Math.max(...current.map((item) => item.id)) + 1 : 1;
-  const created: Product = { ...sanitized, id: nextId };
   const updated = [created, ...current];
   saveToStorage('ff_products', updated);
   productsCache = updated;
@@ -148,7 +113,7 @@ export const addProduct = async (p: Omit<Product, 'id'>): Promise<Product> => {
 
 export const setProductStatus = async (id: number, status: ProductStatus) => {
   const safeId = Math.floor(id);
-  const updated = getLocalProducts().map((p) =>
+  const updated = getProducts().map((p) =>
     p.id === safeId
       ? { ...p, status, stock: status === 'Sold Out' ? 0 : p.stock }
       : p
@@ -159,27 +124,13 @@ export const setProductStatus = async (id: number, status: ProductStatus) => {
 
 export const deleteProduct = async (id: number) => {
   const safeId = Math.floor(id);
-  const updated = getLocalProducts().filter((p) => p.id !== safeId);
+  const updated = getProducts().filter((p) => p.id !== safeId);
   saveToStorage('ff_products', updated);
   productsCache = updated;
 };
 
 export const listOrders = async (): Promise<Order[]> => {
-  if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch('/api/orders');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          saveToStorage('ff_orders', data);
-          return data;
-        }
-      }
-    } catch {
-      // fallback
-    }
-  }
-  return [...getLocalOrders()];
+  return [...getOrders()];
 };
 
 export const createOrder = async (
@@ -187,34 +138,14 @@ export const createOrder = async (
   address: string,
   items: OrderItem[]
 ): Promise<Order> => {
+  const currentOrders = getOrders();
+  const numId = currentOrders.length + 1043;
   const sanitizedItems: OrderItem[] = items.map((i) => ({
     productId: Math.floor(i.productId),
     quantity: Math.max(1, Math.floor(i.quantity)),
     unitPrice: Math.max(0, Number(i.unitPrice) || 0),
   }));
 
-  // Try PostgreSQL API
-  if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buyerName, address, items: sanitizedItems }),
-      });
-      if (res.ok) {
-        const order = await res.json();
-        const currentOrders = getLocalOrders();
-        saveToStorage('ff_orders', [order, ...currentOrders]);
-        return order;
-      }
-    } catch {
-      // fallback to local
-    }
-  }
-
-  // Local storage fallback
-  const currentOrders = getLocalOrders();
-  const numId = currentOrders.length + 1043;
   const order: Order = {
     id: `FF-${numId}`,
     buyerName: sanitizeString(buyerName, 80) || 'Buyer',
@@ -228,8 +159,8 @@ export const createOrder = async (
   saveToStorage('ff_orders', updatedOrders);
   ordersCache = updatedOrders;
 
-  // Decrement local product stock
-  const currentProducts = getLocalProducts();
+  // Decrement product stock in local store
+  const currentProducts = getProducts();
   const updatedProducts = currentProducts.map((p) => {
     const ordered = sanitizedItems.find((i) => i.productId === p.id);
     if (!ordered) return p;
@@ -248,7 +179,7 @@ export const createOrder = async (
 
 export const setOrderStatus = async (id: string, status: OrderStatus) => {
   const safeId = sanitizeString(id, 20);
-  const updated = getLocalOrders().map((o) => (o.id === safeId ? { ...o, status } : o));
+  const updated = getOrders().map((o) => (o.id === safeId ? { ...o, status } : o));
   saveToStorage('ff_orders', updated);
   ordersCache = updated;
 };
