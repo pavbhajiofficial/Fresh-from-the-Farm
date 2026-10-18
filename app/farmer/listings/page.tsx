@@ -5,6 +5,7 @@ import Badge from '@/components/Badge';
 import Photo from '@/components/Photo';
 import { deleteProduct, listProducts, setProductStatus } from '@/lib/api';
 import { inr } from '@/lib/format';
+import { uploadProductImage, updateProductImage } from '@/lib/api-images';
 import type { Product } from '@/lib/types';
 
 const TABS = ['All', 'Active', 'Draft', 'Sold Out'];
@@ -16,7 +17,7 @@ export default function Listings() {
   const [q, setQ] = useState('');
 
   const load = () => {
-    return listProducts()
+    return listProducts(true)
       .then(setProds)
       .finally(() => setLoading(false));
   };
@@ -24,6 +25,28 @@ export default function Listings() {
   useEffect(() => {
     load();
   }, []);
+
+  const setImageUrl = async (p: Product) => {
+    const url = window.prompt(`Public HTTPS photo link for ${p.name} (leave empty to remove photo):`, p.imageUrl || '');
+    if (url === null) return;
+    try {
+      await updateProductImage(p.id, url.trim());
+      await load();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Could not update photo');
+    }
+  };
+
+  const uploadImage = async (p: Product, file?: File) => {
+    if (!file) return;
+    try {
+      const url = await uploadProductImage(file);
+      await updateProductImage(p.id, url);
+      await load();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Could not upload photo');
+    }
+  };
 
   const trimmedQuery = q.trim().toLowerCase();
   const list = prods.filter(
@@ -85,6 +108,15 @@ export default function Listings() {
             </Link>
             <Badge status={p.status} />
             <div className="row" style={{ gap: 8 }}>
+              <button type="button" className="btn sm alt" onClick={() => setImageUrl(p)}>
+                Photo link
+              </button>
+              <label className="btn sm alt" style={{ cursor: 'pointer' }}>
+                Upload photo
+                <input type="file" accept="image/jpeg,image/png,image/webp"
+                  style={{ display: 'none' }}
+                  onChange={(e) => { void uploadImage(p, e.target.files?.[0]); e.target.value = ''; }} />
+              </label>
               {p.status === 'Active' && (
                 <button
                   className="btn sm alt"

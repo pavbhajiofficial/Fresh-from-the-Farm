@@ -3,7 +3,7 @@ export type ProductStatus = 'Active' | 'Draft' | 'Sold Out';
 export type OrderStatus = 'Placed' | 'Confirmed' | 'Preparing' | 'Ready' | 'Completed' | 'Rejected';
 
 export type Product = {
-  id: number; name: string; category: Category; grade: string; description: string;
+  id: number; farmerId?: number; name: string; category: Category; grade: string; description: string;
   price: number; unit: string; stock: number; minOrder: number;
   harvestDate: string; location: string; fulfilment: string;
   farmerName: string; farmName: string; verified: boolean;

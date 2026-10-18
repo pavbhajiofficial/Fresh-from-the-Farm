@@ -12,7 +12,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([listOrders(), listProducts()])
+    Promise.all([listOrders(), listProducts(true)])
       .then(([ords, prds]) => {
         setOrders(ords);
         setProds(prds);

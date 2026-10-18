@@ -63,6 +63,12 @@ export default function Cart() {
       }
     }
 
+    const farmerIds = new Set(lines.map(l => l.p.farmerId));
+    if (farmerIds.size > 1 || farmerIds.has(undefined)) {
+      setErr('Please order produce from one farmer at a time. Remove items from other farms first.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       setErr('');

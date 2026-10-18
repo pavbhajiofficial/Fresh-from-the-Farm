@@ -1,4 +1,5 @@
 'use client';
+
 import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
@@ -6,140 +7,187 @@ import Header from '@/components/Header';
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [mode, setMode] = useState<'login' | 'register'>('register');
   const [role, setRole] = useState<'buyer' | 'farmer'>('buyer');
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [name, setName] = useState('');
+  const [contact, setContact] = useState('');
+  const [location, setLocation] = useState('');
+  const [password, setPassword] = useState('');
+
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const r = searchParams.get('role');
-    if (r === 'farmer') {
+    if (searchParams.get('mode') === 'login') {
+      setMode('login');
+    }
+    if (searchParams.get('role') === 'farmer') {
       setRole('farmer');
     }
   }, [searchParams]);
 
-  function validateContact(val: string): boolean {
-    const trimmed = val.trim();
-    // Valid email check or 10+ digit phone number check
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-    const isPhone = /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{7,15}$/.test(trimmed);
-    return isEmail || isPhone;
-  }
-
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (loading) return;
 
-    const f = new FormData(e.currentTarget);
-    const er: Record<string, string> = {};
+    setLoading(true);
+    setError('');
 
-    const name = String(f.get('name') ?? '').trim();
-    const contact = String(f.get('contact') ?? '').trim();
-    const location = String(f.get('location') ?? '').trim();
-    const password = String(f.get('password') ?? '');
+    try {
+      const endpoint =
+        mode === 'login' ? '/api/auth/login' : '/api/auth/register';
 
-    if (!name) {
-      er.name = 'Enter your full name.';
-    } else if (name.length < 2) {
-      er.name = 'Name must be at least 2 characters.';
-    }
+      const payload = mode === 'login'
+        ? { contact, password }
+        : { name, contact, location, password, role };
 
-    if (!contact) {
-      er.contact = 'Enter a phone number or email.';
-    } else if (!validateContact(contact)) {
-      er.contact = 'Enter a valid email address or phone number.';
-    }
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      });
 
-    if (!location) {
-      er.location = 'Enter your location.';
-    }
+      const data = await response.json();
 
-    if (!password || password.length < 6) {
-      er.password = 'Use at least 6 characters.';
-    }
+      if (!response.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
 
-    setErrors(er);
+      const destination =
+        data.user.role === 'farmer'
+          ? '/farmer'
+          : '/marketplace';
 
-    if (Object.keys(er).length === 0) {
-      setIsSubmitting(true);
-      // Prototype mock auth: redirect to respective portal
-      const target = role === 'farmer' ? '/farmer' : '/marketplace';
-      router.push(target);
+      router.push(destination);
+      router.refresh();
+
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Something went wrong'
+      );
+    } finally {
+      setLoading(false);
     }
   }
-
-  const field = (
-    id: string,
-    label: string,
-    type = 'text',
-    autoComplete?: string,
-    maxLength = 100
-  ) => (
-    <>
-      <label htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        name={id}
-        type={type}
-        autoComplete={autoComplete}
-        maxLength={maxLength}
-        aria-invalid={!!errors[id]}
-        aria-describedby={errors[id] ? `${id}-err` : undefined}
-      />
-      {errors[id] && (
-        <div id={`${id}-err`} className="err" role="alert">
-          {errors[id]}
-        </div>
-      )}
-    </>
-  );
 
   return (
     <div className="wrap" style={{ maxWidth: 640, paddingTop: 56 }}>
-      <form className="card" onSubmit={submit} noValidate>
-        <h2>Join the farm</h2>
-        <p className="mute">Choose how you will use the marketplace.</p>
-        <div className="row" style={{ margin: '16px 0' }}>
-          {(['farmer', 'buyer'] as const).map((r) => (
-            <button
-              type="button"
-              key={r}
-              className={`tab ${role === r ? 'on' : ''}`}
-              style={{ flex: 1, padding: 20 }}
-              onClick={() => setRole(r)}
-            >
-              {r === 'farmer' ? 'Farmer · sell produce' : 'Buyer · buy produce'}
-            </button>
-          ))}
+      <form className="card" onSubmit={submit}>
+        <h2>{mode === 'login' ? 'Welcome back' : 'Join the farm'}</h2>
+
+        <div className="row" style={{ margin: '20px 0' }}>
+          <button
+            type="button"
+            className={`tab ${mode === 'register' ? 'on' : ''}`}
+            onClick={() => { setMode('register'); setError(''); }}
+          >
+            Create account
+          </button>
+          <button
+            type="button"
+            className={`tab ${mode === 'login' ? 'on' : ''}`}
+            onClick={() => { setMode('login'); setError(''); }}
+          >
+            Login
+          </button>
         </div>
-        {field('name', 'Full name', 'text', 'name', 80)}
-        {field('contact', 'Phone number or email', 'text', 'email', 100)}
-        {field('location', role === 'farmer' ? 'Farm location' : 'Location', 'text', 'address-level2', 100)}
-        {field('password', 'Password', 'password', 'current-password', 128)}
-        <button className="btn" style={{ marginTop: 24 }} disabled={isSubmitting}>
-          {isSubmitting ? 'Continuing…' : 'Continue'}
+
+        {mode === 'register' && (
+          <>
+            <label>Register as</label>
+            <div className="row" style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+                className={`tab ${role === 'buyer' ? 'on' : ''}`}
+                onClick={() => setRole('buyer')}
+              >
+                Buyer
+              </button>
+              <button
+                type="button"
+                className={`tab ${role === 'farmer' ? 'on' : ''}`}
+                onClick={() => setRole('farmer')}
+              >
+                Farmer
+              </button>
+            </div>
+
+            <label htmlFor="name">Full name</label>
+            <input
+              id="name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              required
+              minLength={2}
+              maxLength={80}
+            />
+          </>
+        )}
+
+        <label htmlFor="contact">Email or phone number</label>
+        <input
+          id="contact"
+          value={contact}
+          onChange={e => setContact(e.target.value)}
+          required
+          maxLength={100}
+        />
+
+        {mode === 'register' && (
+          <>
+            <label htmlFor="location">Location</label>
+            <input
+              id="location"
+              value={location}
+              onChange={e => setLocation(e.target.value)}
+              required
+              maxLength={100}
+            />
+          </>
+        )}
+
+        <label htmlFor="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          minLength={mode === 'register' ? 8 : 1}
+          maxLength={72}
+        />
+
+        {error && (
+          <p className="err" role="alert" style={{ marginTop: 16 }}>
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          className="btn"
+          disabled={loading}
+          style={{ marginTop: 24 }}
+        >
+          {loading
+            ? 'Please wait...'
+            : mode === 'login'
+              ? 'Login'
+              : 'Create account'}
         </button>
-        <p className="mute" style={{ marginTop: 16 }}>
-          Your details stay private.
-        </p>
       </form>
     </div>
   );
 }
 
-export default function Auth() {
+export default function AuthPage() {
   return (
     <>
       <Header />
-      <Suspense
-        fallback={
-          <div className="wrap" style={{ maxWidth: 640, paddingTop: 56 }}>
-            <div className="card">
-              <h2>Join the farm</h2>
-              <p className="mute">Loading…</p>
-            </div>
-          </div>
-        }
-      >
+      <Suspense fallback={<p>Loading...</p>}>
         <AuthContent />
       </Suspense>
     </>

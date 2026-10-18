@@ -1,185 +1,137 @@
-/**
- * FRONTEND DATA LAYER. Every page communicates with data only through these functions.
- * Backend team: replace each function body with a fetch() to your endpoints (shapes are in
- * lib/types.ts and db/schema.sql).
- *
- * For frontend testing and presentation, this layer maintains state in browser localStorage
- * with seed data fallbacks, so listings, orders, and status updates persist seamlessly across
- * page refreshes without needing a backend server running.
- */
-import type { Order, OrderItem, OrderStatus, Product, ProductStatus } from './types';
+import type {
+  Product,
+  ProductStatus,
+  Order,
+  OrderItem,
+  OrderStatus
+} from './types';
 
-const INITIAL_BASE = {
-  harvestDate: '2026-10-15',
-  fulfilment: 'Delivery or pickup',
-  farmName: 'Kaveri Acres',
-  verified: true,
-  status: 'Active' as ProductStatus,
-};
+// Communicates with our Next.js backend.
+async function api<T>(
+  url: string,
+  options?: RequestInit
+): Promise<T> {
+  const response = await fetch(url, {
+    cache: 'no-store',
+    ...options
+  });
 
-const INITIAL_PRODUCTS: Product[] = [
-  { ...INITIAL_BASE, id: 1, name: 'Vine Tomatoes', category: 'Vegetables', grade: 'Grade A', description: 'Sun-ripened tomatoes picked at dawn. Firm and deep red.', price: 42, unit: 'kg', stock: 800, minOrder: 20, location: 'Coimbatore', farmerName: 'Meena Devi' },
-  { ...INITIAL_BASE, id: 2, name: 'Orange Carrots', category: 'Vegetables', grade: 'Grade A', description: 'Sweet, crunchy hill-grown carrots.', price: 55, unit: 'kg', stock: 420, minOrder: 10, location: 'Ooty', farmerName: 'Rajan K', farmName: 'Hilltop Roots' },
-  { ...INITIAL_BASE, id: 3, name: 'Baby Spinach', category: 'Greens', grade: 'Organic', description: 'Tender leaves, grown without synthetic pesticides.', price: 30, unit: 'bunch', stock: 150, minOrder: 5, location: 'Chennai', farmerName: 'Lakshmi S', farmName: 'Green Loop Farm', verified: false },
-  { ...INITIAL_BASE, id: 4, name: 'Blueberries', category: 'Fruit', grade: 'Premium', description: 'Plump, sweet cool-climate berries in 500 g punnets.', price: 380, unit: 'kg', stock: 60, minOrder: 2, location: 'Kodaikanal', farmerName: 'Anand P', farmName: 'Mist Valley Berries' },
-  { ...INITIAL_BASE, id: 5, name: 'Cherry Tomatoes', category: 'Vegetables', grade: 'Grade A', description: 'Bite-sized and juicy. Next harvest soon.', price: 90, unit: 'kg', stock: 0, minOrder: 5, location: 'Chennai', farmerName: 'Lakshmi S', farmName: 'Green Loop Farm', verified: false, status: 'Sold Out' },
-  { ...INITIAL_BASE, id: 6, name: 'Curry Leaves', category: 'Greens', grade: 'Fresh', description: 'Fragrant leaves cut the same morning.', price: 20, unit: 'bunch', stock: 300, minOrder: 10, location: 'Coimbatore', farmerName: 'Meena Devi' },
-];
+  const data = await response.json();
 
-const INITIAL_ORDERS: Order[] = [
-  { id: 'FF-1042', buyerName: 'Sri Retail Mart', status: 'Placed', createdAt: '2026-10-16', items: [{ productId: 1, quantity: 100, unitPrice: 42 }] },
-  { id: 'FF-1039', buyerName: 'Green Plate Cafe', status: 'Confirmed', createdAt: '2026-10-15', items: [{ productId: 2, quantity: 30, unitPrice: 55 }] },
-  { id: 'FF-1031', buyerName: 'Nila Foods', status: 'Completed', createdAt: '2026-10-12', items: [{ productId: 4, quantity: 8, unitPrice: 380 }] },
-];
-
-function sanitizeString(str: unknown, maxLen = 300): string {
-  if (typeof str !== 'string') return '';
-  return str.slice(0, maxLen).trim();
-}
-
-function loadFromStorage<T>(key: string, fallback: T): T {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw);
-    return parsed ?? fallback;
-  } catch {
-    return fallback;
+  if (!response.ok) {
+    throw new Error(
+      data.error || `API error: ${response.status}`
+    );
   }
+
+  return data as T;
 }
 
-function saveToStorage<T>(key: string, value: T): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Storage quota limits or private browsing
-  }
-}
-
-let productsCache: Product[] = INITIAL_PRODUCTS;
-let ordersCache: Order[] = INITIAL_ORDERS;
-
-function getProducts(): Product[] {
-  const stored = loadFromStorage<Product[]>('ff_products', productsCache);
-  productsCache = Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_PRODUCTS;
-  return productsCache;
-}
-
-function getOrders(): Order[] {
-  const stored = loadFromStorage<Order[]>('ff_orders', ordersCache);
-  ordersCache = Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_ORDERS;
-  return ordersCache;
-}
-
-export const listProducts = async (): Promise<Product[]> => {
-  return [...getProducts()];
-};
-
-export const getProduct = async (id: number): Promise<Product | null> => {
-  const safeId = Math.floor(id);
-  const found = getProducts().find((p) => p.id === safeId);
-  return found ? { ...found } : null;
-};
-
-export const addProduct = async (p: Omit<Product, 'id'>): Promise<Product> => {
-  const current = getProducts();
-  const nextId = current.length > 0 ? Math.max(...current.map((item) => item.id)) + 1 : 1;
-  const created: Product = {
-    ...p,
-    id: nextId,
-    name: sanitizeString(p.name, 100),
-    grade: sanitizeString(p.grade, 50),
-    description: sanitizeString(p.description, 1000),
-    location: sanitizeString(p.location, 100),
-    unit: sanitizeString(p.unit, 20) || 'kg',
-    price: Math.max(0, Number(p.price) || 0),
-    stock: Math.max(0, Number(p.stock) || 0),
-    minOrder: Math.max(1, Number(p.minOrder) || 1),
-    harvestDate: sanitizeString(p.harvestDate, 20),
-    fulfilment: sanitizeString(p.fulfilment, 50) || 'Delivery or pickup',
-    farmerName: sanitizeString(p.farmerName, 80) || 'Meena Devi',
-    farmName: sanitizeString(p.farmName, 80) || 'Kaveri Acres',
-    verified: Boolean(p.verified),
-    status: p.status === 'Active' || p.status === 'Draft' || p.status === 'Sold Out' ? p.status : 'Draft',
-  };
-
-  const updated = [created, ...current];
-  saveToStorage('ff_products', updated);
-  productsCache = updated;
-  return created;
-};
-
-export const setProductStatus = async (id: number, status: ProductStatus) => {
-  const safeId = Math.floor(id);
-  const updated = getProducts().map((p) =>
-    p.id === safeId
-      ? { ...p, status, stock: status === 'Sold Out' ? 0 : p.stock }
-      : p
+export async function listProducts(
+  onlyMine = false
+): Promise<Product[]> {
+  return api<Product[]>(
+    onlyMine ? '/api/products/mine' : '/api/products'
   );
-  saveToStorage('ff_products', updated);
-  productsCache = updated;
-};
+}
+// 2. Fetch one product
+export async function getProduct(
+  id: number
+): Promise<Product | null> {
+  const products = await listProducts();
+  return products.find(p => p.id === id) ?? null;
+}
 
-export const deleteProduct = async (id: number) => {
-  const safeId = Math.floor(id);
-  const updated = getProducts().filter((p) => p.id !== safeId);
-  saveToStorage('ff_products', updated);
-  productsCache = updated;
-};
+// 3. Create a new product
+export async function addProduct(
+  product: Omit<Product, 'id'>
+): Promise<Product> {
+  const result = await api<{
+    success: boolean;
+    product: { id: number };
+  }>('/api/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(product)
+  });
 
-export const listOrders = async (): Promise<Order[]> => {
-  return [...getOrders()];
-};
+  const products = await listProducts(true);
+  const created = products.find(
+    p => p.id === result.product.id
+  );
 
-export const createOrder = async (
+  if (!created) {
+    throw new Error(
+      'Product saved, but could not reload its details.'
+    );
+  }
+
+  return created;
+}
+
+// 4. Update product status
+export async function setProductStatus(
+  id: number,
+  status: ProductStatus
+): Promise<void> {
+  await api(`/api/products/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+}
+
+// 5. Delete a product
+export async function deleteProduct(
+  id: number
+): Promise<void> {
+  await api(`/api/products/${id}`, {
+    method: 'DELETE'
+  });
+}
+
+// 6. Fetch all orders
+export async function listOrders(): Promise<Order[]> {
+  return api<Order[]>('/api/orders');
+}
+
+// 7. Place a new order
+export async function createOrder(
   buyerName: string,
   address: string,
   items: OrderItem[]
-): Promise<Order> => {
-  const currentOrders = getOrders();
-  const numId = currentOrders.length + 1043;
-  const sanitizedItems: OrderItem[] = items.map((i) => ({
-    productId: Math.floor(i.productId),
-    quantity: Math.max(1, Math.floor(i.quantity)),
-    unitPrice: Math.max(0, Number(i.unitPrice) || 0),
-  }));
-
-  const order: Order = {
-    id: `FF-${numId}`,
-    buyerName: sanitizeString(buyerName, 80) || 'Buyer',
-    address: sanitizeString(address, 300),
-    status: 'Placed',
-    createdAt: new Date().toISOString().slice(0, 10),
-    items: sanitizedItems,
-  };
-
-  const updatedOrders = [order, ...currentOrders];
-  saveToStorage('ff_orders', updatedOrders);
-  ordersCache = updatedOrders;
-
-  // Decrement product stock in local store
-  const currentProducts = getProducts();
-  const updatedProducts = currentProducts.map((p) => {
-    const ordered = sanitizedItems.find((i) => i.productId === p.id);
-    if (!ordered) return p;
-    const newStock = Math.max(0, p.stock - ordered.quantity);
-    return {
-      ...p,
-      stock: newStock,
-      status: newStock === 0 ? ('Sold Out' as ProductStatus) : p.status,
-    };
+): Promise<Order> {
+  const result = await api<{
+    success: boolean;
+    orderId: string;
+  }>('/api/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      address,
+      items
+    })
   });
-  saveToStorage('ff_products', updatedProducts);
-  productsCache = updatedProducts;
 
-  return order;
-};
+  // The API currently uses the seeded demo buyer.
+  return {
+    id: result.orderId,
+    buyerName,
+    address,
+    items,
+    status: 'Placed',
+    createdAt: new Date().toISOString().slice(0, 10)
+  };
+}
 
-export const setOrderStatus = async (id: string, status: OrderStatus) => {
-  const safeId = sanitizeString(id, 20);
-  const updated = getOrders().map((o) => (o.id === safeId ? { ...o, status } : o));
-  saveToStorage('ff_orders', updated);
-  ordersCache = updated;
-};
+// 8. Update order status
+export async function setOrderStatus(
+  id: string,
+  status: OrderStatus
+): Promise<void> {
+  await api(`/api/orders/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+}
