@@ -2,6 +2,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addProduct } from '@/lib/api';
+import { uploadProductImage } from '@/lib/api-images';
 import type { Category, ProductStatus } from '@/lib/types';
 
 const REQUIRED = ['name', 'grade', 'location', 'price', 'stock', 'minOrder', 'harvestDate'];
@@ -11,16 +12,16 @@ const ALLOWED_IMAGE_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
-  'image/gif',
-  'image/avif',
 ];
-const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 
 export default function AddProduce() {
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [image, setImage] = useState<string>();
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoUrl, setPhotoUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function pickPhoto(file?: File) {
@@ -30,7 +31,7 @@ export default function AddProduce() {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       setErrors((prev) => ({
         ...prev,
-        photo: 'Please upload a valid image file (JPEG, PNG, WebP, GIF, or AVIF).',
+        photo: 'Please select JPEG, PNG, or WebP.',
       }));
       return;
     }
@@ -39,7 +40,7 @@ export default function AddProduce() {
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       setErrors((prev) => ({
         ...prev,
-        photo: 'Image size exceeds the 5 MB limit.',
+        photo: 'Image size exceeds the 2 MB limit.',
       }));
       return;
     }
@@ -50,6 +51,7 @@ export default function AddProduce() {
       return next;
     });
 
+    setPhotoFile(file);
     const r = new FileReader();
     r.onload = () => {
       if (typeof r.result === 'string') {
@@ -91,6 +93,10 @@ export default function AddProduce() {
 
     try {
       setIsSubmitting(true);
+      let finalImageUrl = photoUrl.trim();
+      if (photoFile) {
+        finalImageUrl = await uploadProductImage(photoFile);
+      }
       await addProduct({
         name: v('name'),
         category: (v('category') as Category) || 'Vegetables',
@@ -106,12 +112,12 @@ export default function AddProduce() {
         farmerName: 'Meena Devi',
         farmName: 'Kaveri Acres',
         verified: true,
-        imageUrl: image,
+        imageUrl: finalImageUrl || undefined,
         status,
       });
       router.push('/farmer/listings');
-    } catch {
-      setErrors((prev) => ({ ...prev, submit: 'Failed to save product. Please try again.' }));
+    } catch (error) {
+      setErrors((prev) => ({ ...prev, submit: error instanceof Error ? error.message : 'Failed to save product. Please try again.' }));
       setIsSubmitting(false);
     }
   }
@@ -164,11 +170,20 @@ export default function AddProduce() {
           </select>
           {field('minOrder', 'Minimum order', 'number')}
           {field('harvestDate', 'Harvest date', 'date')}
-          <label htmlFor="photo">Photo</label>
+          <label htmlFor="photoUrl">Photo HTTPS link (optional)</label>
+          <input
+            id="photoUrl"
+            type="url"
+            value={photoUrl}
+            onChange={(e) => setPhotoUrl(e.target.value)}
+            placeholder="https://example.com/fresh-produce.jpg"
+            maxLength={2048}
+          />
+          <label htmlFor="photo">Or upload photo (needs Cloudinary setup)</label>
           <input
             id="photo"
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+            accept="image/jpeg,image/png,image/webp"
             onChange={(e) => pickPhoto(e.target.files?.[0])}
           />
           {errors.photo && <div className="err" role="alert">{errors.photo}</div>}
@@ -180,7 +195,7 @@ export default function AddProduce() {
             />
           )}
           <p className="mute" style={{ marginTop: 8 }}>
-            Landscape photo, up to 5 MB (JPEG, PNG, WebP).
+            Photo links work immediately. Uploading files requires Cloudinary credentials and supports JPEG, PNG, WebP under 2 MB.
           </p>
         </div>
       </form>

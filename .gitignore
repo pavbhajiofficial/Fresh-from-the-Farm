@@ -1,34 +1,23 @@
-# Dependencies
+# dependencies and build artifacts
 node_modules/
-.pnp
-.pnp.js
-
-# Testing / Build / Output
 .next/
 out/
 build/
 dist/
-
-# Environment files & Secrets
+.vercel/
+# secrets (never commit these)
 .env
+.env.local
 .env*.local
 .env.production
 .env.development
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-*.log
-
-# OS & Archives
+# local archives and databases
+*.zip
+*.dump
+*.backup
+# editor and system
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
-*.zip
-*.tar.gz
-
-# Vercel / IDE
-.vercel
-.vscode/*
-!.vscode/extensions.json
-.idea/
+*.log
